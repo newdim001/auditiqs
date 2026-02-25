@@ -1,5 +1,8 @@
 {
   "name": "auditiqs",
   "version": "1.0.0",
-  "description": "Automated SEO Audit Service"
+  "dependencies": {
+    "stripe": "^14.0.0",
+    "resend": "^3.0.0"
+  }
 }

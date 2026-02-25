@@ -5,7 +5,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { website, email, plan, business = 'auditiqs' } = req.body;
+  let body;
+  try {
+    body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+  } catch (e) {
+    body = req.body;
+  }
+
+  const { website, email, plan, business = 'auditiqs' } = body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
 
   try {
     const price = plan === 'subscription' ? 2900 : 9900;
@@ -20,7 +31,7 @@ export default async function handler(req, res) {
             currency: 'usd',
             product_data: {
               name: productName,
-              description: website,
+              description: website || 'Website audit',
             },
             unit_amount: price,
           },
@@ -28,24 +39,23 @@ export default async function handler(req, res) {
         },
       ],
       mode,
-      success_url: `${req.headers.origin}/?success=true`,
-      cancel_url: `${req.headers.origin}/?canceled=true`,
+      success_url: `https://auditiqs.com/success.html`,
+      cancel_url: `https://auditiqs.com/?canceled=true`,
       metadata: {
-        website,
+        website: website || '',
         email,
         business,
-        plan,
+        plan: plan || 'audit',
         source: 'auto_biz'
       },
       customer_email: email,
     });
 
-    // Track for learning system
     console.log(`📝 Checkout created: ${session.id}, business: ${business}`);
 
     res.json({ url: session.url, sessionId: session.id });
   } catch (error) {
-    console.error('Stripe error:', error);
+    console.error('Stripe error:', error.message);
     res.status(500).json({ error: error.message });
   }
 }
