@@ -1,15 +1,17 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const { Resend } = require('resend');
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { website, email, plan } = req.body;
+  const { website, email, plan, business = 'auditiqs' } = req.body;
 
   try {
-    // Create Stripe checkout session
+    const price = plan === 'subscription' ? 2900 : 9900;
+    const mode = plan === 'subscription' ? 'subscription' : 'payment';
+    const productName = plan === 'subscription' ? 'SEO Audit Subscription' : 'SEO Audit Report';
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -17,23 +19,29 @@ export default async function handler(req, res) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: plan === 'audit' ? 'SEO Audit Report' : 'SEO Audit Subscription',
+              name: productName,
               description: website,
             },
-            unit_amount: plan === 'audit' ? 9900 : 2900,
+            unit_amount: price,
           },
           quantity: 1,
         },
       ],
-      mode: plan === 'audit' ? 'payment' : 'subscription',
-      success_url: `${req.headers.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+      mode,
+      success_url: `${req.headers.origin}/?success=true`,
       cancel_url: `${req.headers.origin}/?canceled=true`,
       metadata: {
         website,
         email,
+        business,
+        plan,
+        source: 'auto_biz'
       },
       customer_email: email,
     });
+
+    // Track for learning system
+    console.log(`📝 Checkout created: ${session.id}, business: ${business}`);
 
     res.json({ url: session.url, sessionId: session.id });
   } catch (error) {
